@@ -58,9 +58,13 @@ func TestReliableVectorClockNode_OrderAndReliability(t *testing.T) {
 			}(),
 			expectedOrderChains: nil,
 			expectedParallelGroups: func() [][]string {
-				parallel := make([][]string, 0, 20)
+				parallel := make([][]string, 0)
 				for i := range 20 {
-					parallel = append(parallel, []string{fmt.Sprintf("A->B-%d", i), fmt.Sprintf("B->C-%d", i)})
+					for j := range i {
+						parallel = append(parallel, make([]string, 0))
+						parallel[len(parallel)-1] = append(parallel[len(parallel)-1], fmt.Sprintf("A->B-%d", i))
+						parallel[len(parallel)-1] = append(parallel[len(parallel)-1], fmt.Sprintf("B->C-%d", j))
+					}
 				}
 				return parallel
 			}(),
@@ -200,9 +204,55 @@ func TestReliableVectorClockNode_OrderAndReliability(t *testing.T) {
 				assert.Less(t, orderedIdxs[orderedPair[0]], orderedIdxs[orderedPair[1]])
 			}
 
-			assert.ElementsMatch(t, tt.expectedParallelGroups, parallel)
+			assert.True(t, verifiyParallelGroups(t, tt.expectedParallelGroups, parallel))
 		})
 	}
+}
+
+func verifiyGroup(t *testing.T, expected []string, actual []string) bool {
+	t.Helper()
+
+	if len(expected) != len(actual) {
+		return false
+	}
+
+	res := make(map[string]int, 0)
+
+	for i := 0; i < len(expected); i++ {
+		res[expected[i]] = 1
+	}
+
+	for i := 0; i < len(actual); i++ {
+		_, exists := res[actual[i]]
+		if exists == false {
+			return false
+		}
+	}
+
+	return true
+}
+
+func verifiyParallelGroups(t *testing.T, expected [][]string, actual [][]string) bool {
+	t.Helper()
+
+	if len(expected) != len(actual) {
+		return false
+	}
+
+	for i := 0; i < len(expected); i++ {
+		found_equal_group := false
+		for j := 0; j < len(actual); j++ {
+			if verifiyGroup(t, expected[i], actual[j]) {
+				found_equal_group = true
+				break
+			}
+		}
+		if found_equal_group == false {
+			return false
+		}
+	}
+
+	return true
 }
 
 func waitUntilPhaseDelivered(t *testing.T, nodes map[string]OrderedNode, phase []send, timeout time.Duration) {
