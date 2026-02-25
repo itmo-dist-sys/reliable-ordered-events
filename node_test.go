@@ -60,7 +60,9 @@ func TestReliableVectorClockNode_OrderAndReliability(t *testing.T) {
 			expectedParallelGroups: func() [][]string {
 				parallel := make([][]string, 0, 20)
 				for i := range 20 {
-					parallel = append(parallel, []string{fmt.Sprintf("A->B-%d", i), fmt.Sprintf("B->C-%d", i)})
+					for j := 0; j <= i; j++ {
+						parallel = append(parallel, []string{fmt.Sprintf("A->B-%d", i), fmt.Sprintf("B->C-%d", j)})
+					}
 				}
 				return parallel
 			}(),
