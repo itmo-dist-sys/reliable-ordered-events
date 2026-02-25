@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
@@ -155,7 +156,9 @@ func TestReliableVectorClockNode_OrderAndReliability(t *testing.T) {
 			// Send in phases: wait for each phase to be delivered before sending the next (causal dependency).
 			for _, phase := range tt.phases {
 				for _, s := range phase {
-					assert.NoError(t, nodes[s.From].Send(s.To, s.Payload))
+					go func() {
+						assert.NoError(t, nodes[s.From].Send(s.To, s.Payload))
+					}()
 				}
 				waitUntilPhaseDelivered(t, nodes, phase, 2*time.Second)
 			}
@@ -202,7 +205,7 @@ func TestReliableVectorClockNode_OrderAndReliability(t *testing.T) {
 				assert.Less(t, orderedIdxs[orderedPair[0]], orderedIdxs[orderedPair[1]])
 			}
 
-			assert.ElementsMatch(t, tt.expectedParallelGroups, parallel)
+			assert.ElementsMatch(t, sortInnerStrings(tt.expectedParallelGroups), sortInnerStrings(parallel))
 		})
 	}
 }
@@ -232,4 +235,14 @@ func waitUntilPhaseDelivered(t *testing.T, nodes map[string]OrderedNode, phase [
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("timeout waiting for phase delivery: %+v", phase)
+}
+
+func sortInnerStrings(arr [][]string) [][]string {
+	sorted := make([][]string, len(arr))
+	for i, subArr := range arr {
+		sorted[i] = make([]string, len(subArr))
+		copy(sorted[i], subArr)
+		sort.Strings(sorted[i])
+	}
+	return sorted
 }
